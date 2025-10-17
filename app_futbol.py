@@ -187,6 +187,50 @@ def mostrar_app_futbol():
                 else:
                     st.warning(f'El partido está muy parejo. Probabilidad: {m_equipo1} ({prob1}%) vs {m_equipo2} ({prob2}%)')
 
+                # Validaciones simples: todos los campos no negativos ya están garantizados por number_input
+                # Guardar la comparativa en un CSV local (historial)
+                import os, csv, datetime
+                historial_file = os.path.join(os.getcwd(), 'comparativas_historial.csv')
+                now = datetime.datetime.now().isoformat()
+                row = [now, m_equipo1, m_equipo2, m_puntos1, m_puntos2, m_gf1, m_gf2, m_gc1, m_gc2, m_gan1, m_gan2, m_emp1, m_emp2, m_per1, m_per2, m_sb1, m_sb2, m_corners1, m_corners2, m_off1, m_off2, prob1, prob2]
+                header = ['ts', 'team1', 'team2', 'puntos1', 'puntos2', 'gf1', 'gf2', 'gc1', 'gc2', 'gan1', 'gan2', 'emp1', 'emp2', 'per1', 'per2', 'sb1', 'sb2', 'corners1', 'corners2', 'off1', 'off2', 'prob1', 'prob2']
+                write_header = not os.path.exists(historial_file)
+                try:
+                    with open(historial_file, 'a', newline='', encoding='utf-8') as f:
+                        writer = csv.writer(f)
+                        if write_header:
+                            writer.writerow(header)
+                        writer.writerow(row)
+                    st.success('Comparativa guardada localmente en comparativas_historial.csv')
+                except Exception as e:
+                    st.error(f'Error guardando historial: {e}')
+
+                # Opción: subir a Google Sheets (opcional)
+                st.markdown('#### (Opcional) Subir comparativa a Google Sheets')
+                gs_upload = st.checkbox('Subir a Google Sheets')
+                if gs_upload:
+                    st.info('Para subir a Google Sheets debes proveer el archivo de credenciales JSON de una Service Account con acceso al Sheet.')
+                    creds = st.file_uploader('Sube el archivo JSON de credenciales (service account)', type=['json'])
+                    sheet_id = st.text_input('ID del Google Sheet (opcional, si vacío se crea uno nuevo)')
+                    if creds is not None:
+                        try:
+                            import gspread
+                            from google.oauth2.service_account import Credentials
+                            scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+                            creds_dict = creds.getvalue()
+                            credentials = Credentials.from_service_account_info(eval(creds_dict), scopes=scope)
+                            gc = gspread.authorize(credentials)
+                            if sheet_id:
+                                sh = gc.open_by_key(sheet_id)
+                            else:
+                                sh = gc.create(f'Comparativas {now}')
+                            worksheet = sh.sheet1
+                            # append row
+                            worksheet.append_row(row)
+                            st.success('Comparativa subida a Google Sheets correctamente.')
+                        except Exception as e:
+                            st.error(f'Error subiendo a Google Sheets: {e}')
+
             # Si el usuario elige manual, no mostrar la UI automática
             return
         if equipos_global:

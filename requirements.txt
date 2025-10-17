@@ -8,3 +8,5 @@ requests
 lxml
 beautifulsoup4
 html5lib
+gspread
+google-auth
