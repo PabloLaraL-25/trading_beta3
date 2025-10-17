@@ -92,6 +92,83 @@ def mostrar_app_futbol():
                 jugadores = tabla['Jugador'].astype(str).tolist()
                 jugadores_global.extend(jugadores)
                 tablas_jugadores.append((i, tabla))
+
+        # Opción: modo de entrada (automático desde tabla o manual)
+        modo_entrada = st.radio('Modo de entrada', ['Auto (leer tabla web)', 'Manual (ingresar estadísticas)'], index=0)
+
+        # Modo manual: formularios para ingresar estadísticas de dos equipos
+        if modo_entrada == 'Manual':
+            st.markdown('### Entrada manual de estadísticas')
+            with st.form('manual_form'):
+                col1, col2 = st.columns(2)
+                with col1:
+                    m_equipo1 = st.text_input('Equipo 1', value='Equipo A')
+                    m_puntos1 = st.number_input('Puntos (Equipo 1)', min_value=0, value=0)
+                    m_dif1 = st.number_input('Diferencia de goles (Equipo 1)', value=0)
+                    m_gf1 = st.number_input('Goles a favor (Equipo 1)', min_value=0, value=0)
+                    m_gc1 = st.number_input('Goles en contra (Equipo 1)', min_value=0, value=0)
+                    m_gan1 = st.number_input('Ganados (Equipo 1)', min_value=0, value=0)
+                    m_per1 = st.number_input('Perdidos (Equipo 1)', min_value=0, value=0)
+                    m_sb1 = st.number_input('Saques de banda (Equipo 1)', min_value=0, value=0)
+                with col2:
+                    m_equipo2 = st.text_input('Equipo 2', value='Equipo B')
+                    m_puntos2 = st.number_input('Puntos (Equipo 2)', min_value=0, value=0)
+                    m_dif2 = st.number_input('Diferencia de goles (Equipo 2)', value=0)
+                    m_gf2 = st.number_input('Goles a favor (Equipo 2)', min_value=0, value=0)
+                    m_gc2 = st.number_input('Goles en contra (Equipo 2)', min_value=0, value=0)
+                    m_gan2 = st.number_input('Ganados (Equipo 2)', min_value=0, value=0)
+                    m_per2 = st.number_input('Perdidos (Equipo 2)', min_value=0, value=0)
+                    m_sb2 = st.number_input('Saques de banda (Equipo 2)', min_value=0, value=0)
+                enviar = st.form_submit_button('Analizar manualmente')
+            if enviar:
+                # Construir comparativa y score similar al automático
+                st.markdown(f"""
+                ### Comparativa (Manual)
+                | Equipo | Puntos | Dif. Goles | Goles a favor | Goles en contra | Ganados | Perdidos | Saques de banda |
+                |--------|--------|------------|---------------|-----------------|---------|----------|-----------------|
+                | {m_equipo1} | {m_puntos1} | {m_dif1} | {m_gf1} | {m_gc1} | {m_gan1} | {m_per1} | {m_sb1} |
+                | {m_equipo2} | {m_puntos2} | {m_dif2} | {m_gf2} | {m_gc2} | {m_gan2} | {m_per2} | {m_sb2} |
+                """)
+
+                score = 0
+                total_score = 6.0
+                if m_puntos1 > m_puntos2:
+                    score += 2
+                elif m_puntos2 > m_puntos1:
+                    score -= 2
+                if m_dif1 > m_dif2:
+                    score += 1
+                elif m_dif2 > m_dif1:
+                    score -= 1
+                if m_gf1 > m_gf2:
+                    score += 0.5
+                elif m_gf2 > m_gf1:
+                    score -= 0.5
+                if m_gan1 > m_gan2:
+                    score += 0.5
+                elif m_gan2 > m_gan1:
+                    score -= 0.5
+                if m_per1 < m_per2:
+                    score += 0.5
+                elif m_per2 < m_per1:
+                    score -= 0.5
+                # incluir saques de banda como indicador adicional (más saques -> más ataque)
+                if m_sb1 > m_sb2:
+                    score += 0.5
+                elif m_sb2 > m_sb1:
+                    score -= 0.5
+
+                prob1 = max(0, min(100, round(50 + (score/total_score)*50, 1)))
+                prob2 = 100 - prob1
+                if score > 0:
+                    st.success(f"{m_equipo1} tiene mejores estadísticas. Probabilidad: {m_equipo1} ({prob1}%) vs {m_equipo2} ({prob2}%)")
+                elif score < 0:
+                    st.success(f"{m_equipo2} tiene mejores estadísticas. Probabilidad: {m_equipo2} ({prob2}%) vs {m_equipo1} ({prob1}%)")
+                else:
+                    st.warning(f'El partido está muy parejo. Probabilidad: {m_equipo1} ({prob1}%) vs {m_equipo2} ({prob2}%)')
+
+            # Si el usuario elige manual, no mostrar la UI automática
+            return
         if equipos_global:
             equipo1 = st.selectbox('Equipo 1 (todas las tablas)', equipos_global, key='eq1_global')
             equipo2 = st.selectbox('Equipo 2 (todas las tablas)', equipos_global, key='eq2_global')
@@ -108,22 +185,34 @@ def mostrar_app_futbol():
                             fila2 = f2
                 if fila1 is not None and fila2 is not None:
                     def get_val(fila, colnames, default=0):
+                        # busca varias variantes y devuelve un número cuando es posible
                         for c in colnames:
                             if c in fila.columns:
-                                return fila[c].values[0]
+                                val = fila[c].values[0]
+                                try:
+                                    # convertir a número si es posible
+                                    if pd.isna(val):
+                                        return default
+                                    if isinstance(val, str):
+                                        valn = val.replace(',', '').strip()
+                                        return float(valn) if ('.' in valn) else int(valn)
+                                    return float(val)
+                                except Exception:
+                                    return default
                         return default
-                    puntos1 = get_val(fila1, ['Puntos'])
-                    puntos2 = get_val(fila2, ['Puntos'])
-                    dif1 = get_val(fila1, ['Diferencia'])
-                    dif2 = get_val(fila2, ['Diferencia'])
-                    gf1 = get_val(fila1, ['GF', 'Goles a favor', 'Goles Favor', 'GFavor'])
-                    gf2 = get_val(fila2, ['GF', 'Goles a favor', 'Goles Favor', 'GFavor'])
+
+                    puntos1 = get_val(fila1, ['Puntos', 'PTS', 'pts'])
+                    puntos2 = get_val(fila2, ['Puntos', 'PTS', 'pts'])
+                    dif1 = get_val(fila1, ['Diferencia', 'Dif', 'DIF'])
+                    dif2 = get_val(fila2, ['Diferencia', 'Dif', 'DIF'])
+                    gf1 = get_val(fila1, ['Goles', 'GF', 'Goles a favor', 'Goles Favor', 'GFavor'])
+                    gf2 = get_val(fila2, ['Goles', 'GF', 'Goles a favor', 'Goles Favor', 'GFavor'])
                     gc1 = get_val(fila1, ['GC', 'Goles en contra', 'Goles Contra', 'GContra'])
                     gc2 = get_val(fila2, ['GC', 'Goles en contra', 'Goles Contra', 'GContra'])
-                    gan1 = get_val(fila1, ['G', 'Ganados', 'PG', 'Partidos Ganados'])
-                    gan2 = get_val(fila2, ['G', 'Ganados', 'PG', 'Partidos Ganados'])
-                    per1 = get_val(fila1, ['P', 'Perdidos', 'PP', 'Partidos Perdidos'])
-                    per2 = get_val(fila2, ['P', 'Perdidos', 'PP', 'Partidos Perdidos'])
+                    gan1 = get_val(fila1, ['JG', 'G', 'Ganados', 'PG', 'Partidos Ganados'])
+                    gan2 = get_val(fila2, ['JG', 'G', 'Ganados', 'PG', 'Partidos Ganados'])
+                    per1 = get_val(fila1, ['JP', 'P', 'Perdidos', 'PP', 'Partidos Perdidos'])
+                    per2 = get_val(fila2, ['JP', 'P', 'Perdidos', 'PP', 'Partidos Perdidos'])
 
                     st.markdown(f"""
                     ### Comparativa
