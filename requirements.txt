@@ -4,3 +4,7 @@ pandas
 matplotlib
 ta
 requests
+
+lxml
+beautifulsoup4
+html5lib
