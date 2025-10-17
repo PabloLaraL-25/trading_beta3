@@ -108,8 +108,11 @@ def mostrar_app_futbol():
                     m_gf1 = st.number_input('Goles a favor (Equipo 1)', min_value=0, value=0)
                     m_gc1 = st.number_input('Goles en contra (Equipo 1)', min_value=0, value=0)
                     m_gan1 = st.number_input('Ganados (Equipo 1)', min_value=0, value=0)
+                    m_emp1 = st.number_input('Empates (Equipo 1)', min_value=0, value=0)
                     m_per1 = st.number_input('Perdidos (Equipo 1)', min_value=0, value=0)
                     m_sb1 = st.number_input('Saques de banda (Equipo 1)', min_value=0, value=0)
+                    m_corners1 = st.number_input('Esquinas (Equipo 1)', min_value=0, value=0)
+                    m_off1 = st.number_input('Fueras de lugar (Equipo 1)', min_value=0, value=0)
                 with col2:
                     m_equipo2 = st.text_input('Equipo 2', value='Equipo B')
                     m_puntos2 = st.number_input('Puntos (Equipo 2)', min_value=0, value=0)
@@ -117,21 +120,24 @@ def mostrar_app_futbol():
                     m_gf2 = st.number_input('Goles a favor (Equipo 2)', min_value=0, value=0)
                     m_gc2 = st.number_input('Goles en contra (Equipo 2)', min_value=0, value=0)
                     m_gan2 = st.number_input('Ganados (Equipo 2)', min_value=0, value=0)
+                    m_emp2 = st.number_input('Empates (Equipo 2)', min_value=0, value=0)
                     m_per2 = st.number_input('Perdidos (Equipo 2)', min_value=0, value=0)
                     m_sb2 = st.number_input('Saques de banda (Equipo 2)', min_value=0, value=0)
+                    m_corners2 = st.number_input('Esquinas (Equipo 2)', min_value=0, value=0)
+                    m_off2 = st.number_input('Fueras de lugar (Equipo 2)', min_value=0, value=0)
                 enviar = st.form_submit_button('Analizar manualmente')
             if enviar:
                 # Construir comparativa y score similar al automático
                 st.markdown(f"""
                 ### Comparativa (Manual)
-                | Equipo | Puntos | Dif. Goles | Goles a favor | Goles en contra | Ganados | Perdidos | Saques de banda |
-                |--------|--------|------------|---------------|-----------------|---------|----------|-----------------|
-                | {m_equipo1} | {m_puntos1} | {m_dif1} | {m_gf1} | {m_gc1} | {m_gan1} | {m_per1} | {m_sb1} |
-                | {m_equipo2} | {m_puntos2} | {m_dif2} | {m_gf2} | {m_gc2} | {m_gan2} | {m_per2} | {m_sb2} |
+                | Equipo | Puntos | Dif. Goles | Goles a favor | Goles en contra | Ganados | Empates | Perdidos | Saques de banda | Esquinas | Fueras de lugar |
+                |--------|--------|------------|---------------|-----------------|---------|---------|----------|-----------------|----------|-----------------|
+                | {m_equipo1} | {m_puntos1} | {m_dif1} | {m_gf1} | {m_gc1} | {m_gan1} | {m_emp1} | {m_per1} | {m_sb1} | {m_corners1} | {m_off1} |
+                | {m_equipo2} | {m_puntos2} | {m_dif2} | {m_gf2} | {m_gc2} | {m_gan2} | {m_emp2} | {m_per2} | {m_sb2} | {m_corners2} | {m_off2} |
                 """)
 
                 score = 0
-                total_score = 6.0
+                total_score = 7.0
                 if m_puntos1 > m_puntos2:
                     score += 2
                 elif m_puntos2 > m_puntos1:
@@ -148,15 +154,29 @@ def mostrar_app_futbol():
                     score += 0.5
                 elif m_gan2 > m_gan1:
                     score -= 0.5
+                # menos empates indica equipo más ganador
+                if m_emp1 < m_emp2:
+                    score += 0.2
+                elif m_emp2 < m_emp1:
+                    score -= 0.2
                 if m_per1 < m_per2:
                     score += 0.5
                 elif m_per2 < m_per1:
                     score -= 0.5
-                # incluir saques de banda como indicador adicional (más saques -> más ataque)
+                # saques de banda y esquinas: más indica mayor presión ofensiva
                 if m_sb1 > m_sb2:
-                    score += 0.5
+                    score += 0.3
                 elif m_sb2 > m_sb1:
-                    score -= 0.5
+                    score -= 0.3
+                if m_corners1 > m_corners2:
+                    score += 0.3
+                elif m_corners2 > m_corners1:
+                    score -= 0.3
+                # fueras de lugar: menos es mejor
+                if m_off1 < m_off2:
+                    score += 0.2
+                elif m_off2 < m_off1:
+                    score -= 0.2
 
                 prob1 = max(0, min(100, round(50 + (score/total_score)*50, 1)))
                 prob2 = 100 - prob1
